@@ -115,7 +115,11 @@ export class CinematicScene extends Phaser.Scene {
     kb.once('keydown-ESC', () => this.finish());
     this.input.once('pointerdown', () => this.finish());
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupDom());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.removeAllListeners();
+      gsap.killTweensOf([kayon, progressBar]);
+      this.cleanupDom();
+    });
   }
 
   private tryPlayVideo(url: string, progressBar: Phaser.GameObjects.Rectangle, fallbackTween: gsap.core.Tween): void {
@@ -199,7 +203,8 @@ export class CinematicScene extends Phaser.Scene {
       container.appendChild(controlsBar);
 
       // Clicking anywhere on the video container un-mutes audio if muted
-      container.onclick = () => {
+      container.onclick = (e) => {
+        e.stopPropagation();
         if (vid.muted) {
           vid.muted = false;
           unmuteBtn.style.display = 'none';

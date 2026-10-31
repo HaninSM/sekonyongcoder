@@ -9,6 +9,7 @@ const VIGNETTE_KEY = 'kelir-vignette';
 export class Lighting {
   private glow: Phaser.GameObjects.Image;
   private flickerTween?: gsap.core.Tween;
+  private isDestroyed = false;
 
   constructor(private scene: Phaser.Scene) {
     this.createTextures();
@@ -18,10 +19,14 @@ export class Lighting {
     scene.add.image(0, 0, VIGNETTE_KEY).setOrigin(0).setScrollFactor(0).setDepth(100);
 
     this.flicker();
-    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.flickerTween?.kill());
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.isDestroyed = true;
+      this.flickerTween?.kill();
+    });
   }
 
   private flicker(): void {
+    if (this.isDestroyed) return;
     if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
       this.glow.setAlpha(0.85).setScale(1);
       return;
@@ -34,7 +39,9 @@ export class Lighting {
       scaleY: scale,
       duration: gsap.utils.random(b.flickerMin, b.flickerMax),
       ease: 'sine.inOut',
-      onComplete: () => this.flicker(),
+      onComplete: () => {
+        if (!this.isDestroyed) this.flicker();
+      },
     });
   }
 

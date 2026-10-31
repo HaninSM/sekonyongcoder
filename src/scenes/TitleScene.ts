@@ -162,6 +162,11 @@ export class TitleScene extends Phaser.Scene {
     kb.once('keydown-THREE', () => this.start('dojo'));
     kb.once('keydown-NUMPAD_THREE', () => this.start('dojo'));
     kb.once('keydown-D', () => this.start('dojo'));
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.keyboard?.removeAllListeners();
+      gsap.killTweensOf([btnBg, arcadeText, kayon]);
+    });
   }
 
   private start(mode: Mode): void {

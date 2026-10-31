@@ -102,6 +102,12 @@ export class Effects {
     gsap.to(t, { y: y - 40, alpha: 0, duration: 0.7, delay: 0.25, ease: 'power1.in', onComplete: () => t.destroy() });
   }
 
+  destroy(): void {
+    for (const label of this.labels.values()) {
+      label.destroy();
+    }
+    this.labels.clear();
+  }
 }
 
 export function textStyle(

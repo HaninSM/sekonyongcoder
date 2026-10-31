@@ -26,6 +26,7 @@ export const NO_INPUT: InputState = {
 // Anything that can drive a fighter: a keyboard layout, touch overlay, or the CPU.
 export interface Controller {
   read(): InputState;
+  destroy?(): void;
 }
 
 type Action = 'left' | 'right' | 'jump' | 'hand' | 'kick' | 'triwikrama' | 'ekorApi' | 'mengecil';
@@ -116,6 +117,10 @@ export class TouchController implements Controller {
 
   private mountTouchUI(): void {
     if (typeof document === 'undefined') return;
+
+    // Idempotent: remove previous instances to avoid duplicate DOM elements
+    document.getElementById('touch-controls-overlay')?.remove();
+    document.getElementById('btn-toggle-touchpad')?.remove();
 
     const overlay = document.createElement('div');
     overlay.id = 'touch-controls-overlay';
@@ -328,6 +333,10 @@ export class CompositeController implements Controller {
       ekorApiPressed: states.some((s) => s.ekorApiPressed),
       mengecilPressed: states.some((s) => s.mengecilPressed),
     };
+  }
+
+  destroy(): void {
+    this.controllers.forEach((c) => c.destroy?.());
   }
 }
 

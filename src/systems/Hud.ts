@@ -105,7 +105,7 @@ export class Hud {
       side.health.scaleX = f.health / FIGHTER.maxHealth;
       if (f.health !== side.lastHealth) {
         side.lastHealth = f.health;
-        gsap.to(side.ghost, { scaleX: side.health.scaleX, duration: 0.5, delay: 0.35, ease: 'power2.in' });
+        gsap.to(side.ghost, { scaleX: side.health.scaleX, duration: 0.5, delay: 0.35, ease: 'power2.in', overwrite: 'auto' });
       }
       side.meter.scaleX = f.meterShown / AJI.max;
       side.meter.fillColor = f.meterShown >= AJI.max ? 0xffe08a : COLORS.gold;

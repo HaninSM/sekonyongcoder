@@ -119,6 +119,13 @@ export class FightScene extends Phaser.Scene {
     });
 
     this.input.keyboard!.on('keydown-ESC', () => this.scene.start('TitleScene'));
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.controllers?.forEach((c) => c.destroy?.());
+      this.fireballs?.forEach((b) => b.destroy());
+      this.effects?.destroy();
+      this.input.keyboard?.removeAllListeners();
+    });
   }
 
   update(_time: number, delta: number): void {
@@ -392,8 +399,12 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    this.hud.announce(`${this.sideName(champion)} menang!`, 'J  main lagi      Esc  menu');
+    this.hud.announce(`${this.sideName(champion)} menang!`, 'J / Sentuh: Main Lagi · Esc: Menu');
     this.input.keyboard!.once('keydown-J', () =>
+      this.scene.restart({ mode: this.match.mode, wins: [0, 0], round: 1 }),
+    );
+    this.input.keyboard!.once('keydown-ESC', () => this.scene.start('TitleScene'));
+    this.input.once('pointerdown', () =>
       this.scene.restart({ mode: this.match.mode, wins: [0, 0], round: 1 }),
     );
   }

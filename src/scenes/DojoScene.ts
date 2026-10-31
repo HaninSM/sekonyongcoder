@@ -73,10 +73,16 @@ export class DojoScene extends Phaser.Scene {
       if (!this.showDebug) this.debugGraphics.clear();
     });
 
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.cleanupDom());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.controllers?.forEach((c) => c.destroy?.());
+      this.effects?.destroy();
+      this.cleanupDom();
+      this.input.keyboard?.removeAllListeners();
+    });
   }
 
   private spawnFighters(): void {
+    this.controllers?.forEach((c) => c.destroy?.());
     if (this.p1) this.p1.destroy();
     if (this.dummy) this.dummy.destroy();
     this.fireballs.forEach((b) => b.destroy());
