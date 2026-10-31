@@ -193,7 +193,7 @@ export class FightScene extends Phaser.Scene {
 
     const currentChapter = storyConfig.chapters.find((c: any) => c.chapterIndex === (this.match.chapterIndex ?? 1)) ?? storyConfig.chapters[0];
     const rageVids =
-      currentChapter?.rageVideos?.filter((v: string) => v && v.endsWith('.mp4'))?.length
+      currentChapter?.rageVideos?.filter((v: string) => v && (v.endsWith('.mp4') || v.endsWith('.webm') || v.endsWith('.mov')))?.length
         ? currentChapter.rageVideos
         : ['/videos/combo_1_sugriwa_ke_subali.mp4', '/videos/combo_2_sugriwa_ke_subali.mp4'];
     const chosenVideo = rageVids[Math.floor(Math.random() * rageVids.length)];
