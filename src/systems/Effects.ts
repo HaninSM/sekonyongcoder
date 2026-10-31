@@ -104,13 +104,27 @@ export class Effects {
 
 }
 
-export function textStyle(size: number): Phaser.Types.GameObjects.Text.TextStyle {
+export function textStyle(
+  size: number,
+  customColor = '#fff5db',
+  customStroke = '#1c110a',
+): Phaser.Types.GameObjects.Text.TextStyle {
+  const dpr = typeof window !== 'undefined' ? Math.max(2, window.devicePixelRatio || 2) : 2;
   return {
     fontFamily: 'Georgia, serif',
     fontSize: `${size}px`,
     fontStyle: 'bold',
-    color: '#3a1d08',
-    stroke: '#f5c451',
-    strokeThickness: 4,
+    color: customColor,
+    stroke: customStroke,
+    strokeThickness: Math.max(3, Math.round(size * 0.14)),
+    resolution: dpr,
+    shadow: {
+      offsetX: 1,
+      offsetY: 2,
+      color: 'rgba(0, 0, 0, 0.85)',
+      blur: 3,
+      stroke: true,
+      fill: true,
+    },
   };
 }

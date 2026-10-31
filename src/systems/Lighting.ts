@@ -22,6 +22,10 @@ export class Lighting {
   }
 
   private flicker(): void {
+    if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches) {
+      this.glow.setAlpha(0.85).setScale(1);
+      return;
+    }
     const b = KELIR.blencong;
     const scale = gsap.utils.random(b.scaleMin, b.scaleMax);
     this.flickerTween = gsap.to(this.glow, {

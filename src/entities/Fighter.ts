@@ -16,6 +16,7 @@ import {
   type MoveId,
 } from '../constants';
 import { NO_INPUT, type InputState } from '../systems/InputController';
+import { Sounds } from '../systems/SoundSystem';
 import { buildPuppet, pieceKey, pointToWorld, type Puppet, type RigData } from './Puppet';
 import hanomanRig from '../assets/characters/hanoman/rig.json';
 import sugriwaRig from '../assets/characters/sugriwa/rig.json';
@@ -335,6 +336,7 @@ export class Fighter extends Phaser.GameObjects.Container {
     this.moveFrame = 0;
     this.moveConnected = false;
     this.queued = undefined;
+    Sounds.whoosh(id.includes('tendang') ? 0.9 : 1.2, 0.4);
     this.lunge = 0;
     this.recovering = false;
     this.activeUntil = m.dive ? Infinity : m.windUpFrames + m.strikeFrames + m.active;

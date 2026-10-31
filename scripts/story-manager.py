@@ -181,8 +181,20 @@ def main():
             outro_file = prompt_text("Nama File Film OUTRO (di folder public/videos/)", default_outro)
 
         # Film Rage Combat (default 1 & 2)
-        rage_1 = prompt_text("File Video Rage Combat 1", "rage_combat_1.mp4")
-        rage_2 = prompt_text("File Video Rage Combat 2", "rage_combat_2.mp4")
+        if videos:
+            rage_1 = choose_from_list(
+                f"Pilih File Video Rage Combat 1 Babak {i}:",
+                videos,
+                allow_custom=True
+            )
+            rage_2 = choose_from_list(
+                f"Pilih File Video Rage Combat 2 Babak {i}:",
+                videos,
+                allow_custom=True
+            )
+        else:
+            rage_1 = prompt_text("File Video Rage Combat 1", "combo_1_sugriwa_ke_subali.mp4")
+            rage_2 = prompt_text("File Video Rage Combat 2", "combo_2_sugriwa_ke_subali.mp4")
 
         chapter_data = {
             "chapterIndex": i,

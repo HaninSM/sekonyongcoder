@@ -6,8 +6,9 @@ import { pieceKey } from '../entities/Puppet';
 import { AIController } from '../systems/AIController';
 import { Effects } from '../systems/Effects';
 import { Hud } from '../systems/Hud';
-import { KEYMAPS, KeyboardController, NO_INPUT, type Controller, type InputState } from '../systems/InputController';
+import { KEYMAPS, NO_INPUT, createPlayerController, type Controller, type InputState } from '../systems/InputController';
 import { Lighting } from '../systems/Lighting';
+import { Sounds } from '../systems/SoundSystem';
 
 const allCharacterPieces = import.meta.glob<string>('../assets/characters/*/*.png', {
   eager: true,
@@ -31,6 +32,7 @@ export class DojoScene extends Phaser.Scene {
   private showDebug = true;
   private dummyMode: 'stand' | 'block' | 'counter' = 'stand';
   private activeTab: 'moves' | 'tuner' = 'moves';
+  private isMinimized = false;
 
   private accumulator = 0;
   private pending: [InputState, InputState] = [NO_INPUT, NO_INPUT];
@@ -90,7 +92,7 @@ export class DojoScene extends Phaser.Scene {
 
     const fireballs = () => this.fireballs;
     this.controllers = [
-      new KeyboardController(this, KEYMAPS.p1),
+      createPlayerController(this, KEYMAPS.p1),
       new AIController(this.dummy, this.p1, fireballs),
     ];
   }
@@ -179,8 +181,11 @@ export class DojoScene extends Phaser.Scene {
       const heavy = !!move.launch || attacker.power > 1;
 
       if (result === 'block') {
+        Sounds.kepyak(0.8);
         this.effects.guard(contact.centerX, contact.centerY, attacker.facing);
       } else {
+        Sounds.hit(heavy, 0.85);
+        Sounds.cempala(heavy ? 0.9 : 1.3, 0.5);
         this.effects.spark(contact.centerX, contact.centerY, heavy);
         this.effects.label(move.label, attacker.x, attacker.y - 130 * attacker.sizeScale, heavy, `p${i}`);
       }
@@ -242,13 +247,15 @@ export class DojoScene extends Phaser.Scene {
   private createDomOverlay(): void {
     const el = document.createElement('div');
     el.id = 'dojo-overlay';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Dojo Rig Simulator');
     el.style.position = 'absolute';
     el.style.top = '10px';
     el.style.right = '10px';
-    el.style.width = '340px';
-    el.style.maxHeight = '95vh';
+    el.style.width = 'min(340px, 92vw)';
+    el.style.maxHeight = '90vh';
     el.style.overflowY = 'auto';
-    el.style.background = 'rgba(28, 17, 10, 0.92)';
+    el.style.background = 'rgba(28, 17, 10, 0.94)';
     el.style.border = '2px solid #f5c451';
     el.style.borderRadius = '8px';
     el.style.padding = '12px';
@@ -256,16 +263,39 @@ export class DojoScene extends Phaser.Scene {
     el.style.fontFamily = 'Georgia, serif';
     el.style.fontSize = '12px';
     el.style.zIndex = '10000';
-    el.style.boxShadow = '0 0 15px rgba(0,0,0,0.8)';
+    el.style.boxShadow = '0 0 20px rgba(0,0,0,0.85)';
 
     this.uiContainer = el;
-    document.body.appendChild(el);
+    (document.getElementById('game-viewport') || document.body).appendChild(el);
     this.renderDomContent();
   }
 
   private renderDomContent(): void {
     if (!this.uiContainer) return;
     const el = this.uiContainer;
+
+    if (this.isMinimized) {
+      el.style.padding = '6px 12px';
+      el.style.width = 'auto';
+      el.innerHTML = `
+        <div style="display:flex; align-items:center; gap:8px;">
+          <strong style="color:#f5c451; font-size:13px;">🥋 DOJO RIG</strong>
+          <button id="btn-toggle-min" style="background:#4a3a1c; border:1px solid #f5c451; color:#f2d49b; border-radius:4px; cursor:pointer; padding:3px 8px; font-weight:bold;">Buka Panel ▾</button>
+          <button id="btn-esc" style="background:#2a170a; border:1px solid #6b5526; color:#f2d49b; border-radius:4px; cursor:pointer; padding:3px 8px;">Menu</button>
+        </div>
+      `;
+      el.querySelector('#btn-toggle-min')?.addEventListener('click', () => {
+        this.isMinimized = false;
+        el.style.padding = '12px';
+        el.style.width = 'min(340px, 92vw)';
+        this.renderDomContent();
+      });
+      el.querySelector('#btn-esc')?.addEventListener('click', () => {
+        this.cleanupDom();
+        this.scene.start('TitleScene');
+      });
+      return;
+    }
 
     const charOptions = (selected: string) =>
       AVAILABLE_CHARACTERS.map(
@@ -275,7 +305,10 @@ export class DojoScene extends Phaser.Scene {
     el.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #6b5526; padding-bottom:6px; margin-bottom:8px;">
         <strong style="color:#f5c451; font-size:14px;">🥋 DOJO: RIG SIMULATOR</strong>
-        <button id="btn-esc" style="background:#4a3a1c; border:1px solid #f5c451; color:#f2d49b; border-radius:4px; cursor:pointer; padding:2px 8px;">Menu (Esc)</button>
+        <div style="display:flex; gap:4px;">
+          <button id="btn-toggle-min" title="Kecilkan panel" style="background:#3a2212; border:1px solid #f5c451; color:#f5c451; border-radius:4px; cursor:pointer; padding:2px 8px; font-weight:bold;">_</button>
+          <button id="btn-esc" style="background:#4a3a1c; border:1px solid #f5c451; color:#f2d49b; border-radius:4px; cursor:pointer; padding:2px 8px;">Menu (Esc)</button>
+        </div>
       </div>
 
       <!-- Character Selectors -->
@@ -380,6 +413,12 @@ export class DojoScene extends Phaser.Scene {
     if (!this.uiContainer) return;
     const el = this.uiContainer;
 
+    // Toggle minimize
+    el.querySelector('#btn-toggle-min')?.addEventListener('click', () => {
+      this.isMinimized = true;
+      this.renderDomContent();
+    });
+
     // Esc
     el.querySelector('#btn-esc')?.addEventListener('click', () => {
       this.cleanupDom();
@@ -464,18 +503,29 @@ export class DojoScene extends Phaser.Scene {
 
   private wireEvents(f: Fighter): void {
     f.on('fireball', (e: FireballEvent) => {
+      Sounds.fireball(0.85);
       this.effects.label(e.move.label, f.x, f.y - 130 * f.sizeScale, true, `p${f === this.p1 ? 0 : 1}`);
       this.fireballs.push(new Fireball(this, e, (x, y, size) => this.effects.ember(x, y, size)));
     });
-    f.on('land', (x: number, y: number, impact?: boolean) => this.effects.dust(x, y, impact ? 2 : 1));
-    f.on('jump', (x: number, y: number) => this.effects.dust(x, y, 0.6));
+    f.on('land', (x: number, y: number, impact?: boolean) => {
+      Sounds.cempala(impact ? 0.9 : 1.2, impact ? 0.5 : 0.3);
+      this.effects.dust(x, y, impact ? 2 : 1);
+    });
+    f.on('jump', (x: number, y: number) => {
+      Sounds.whoosh(1.3, 0.45);
+      this.effects.dust(x, y, 0.6);
+    });
     f.on('aji', (name: string) => {
       if (name === 'triwikrama') {
+        Sounds.gong('kempul', 0.9);
         this.cameras.main.flash(250, 255, 224, 160);
         this.cameras.main.shake(300, 0.012);
         this.effects.label('Aji Triwikrama!', f.x, f.y - 230, true);
       }
-      if (name === 'mengecil') this.effects.label('Mengecil', f.x, f.y - 60);
+      if (name === 'mengecil') {
+        Sounds.whoosh(1.8, 0.6);
+        this.effects.label('Mengecil', f.x, f.y - 60);
+      }
     });
   }
 

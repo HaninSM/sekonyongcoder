@@ -4,10 +4,14 @@ import { COLORS } from '../constants';
 
 const KEY = 'gunungan';
 
-// The artwork is optional: a glob matches nothing until the file exists.
-const artwork = Object.values(
-  import.meta.glob<string>('../assets/gunungan.png', { eager: true, query: '?url', import: 'default' }),
-)[0];
+// The artwork is optional: webp preferred for 80%+ size savings.
+const artwork =
+  Object.values(
+    import.meta.glob<string>('../assets/gunungan.webp', { eager: true, query: '?url', import: 'default' }),
+  )[0] ||
+  Object.values(
+    import.meta.glob<string>('../assets/gunungan.png', { eager: true, query: '?url', import: 'default' }),
+  )[0];
 
 export function preloadGunungan(scene: Phaser.Scene): void {
   if (artwork && !scene.textures.exists(KEY)) scene.load.image(KEY, artwork);

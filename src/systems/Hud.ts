@@ -34,9 +34,20 @@ export class Hud {
     wins: [number, number],
   ) {
     this.sides = [0, 1].map((i) => this.buildSide(i, names[i], wins[i]));
-    this.timer = scene.add.text(GAME.width / 2, BAR_Y + 4, '', textStyle(40)).setOrigin(0.5).setDepth(DEPTH);
-    this.banner = scene.add.text(GAME.width / 2, 210, '', textStyle(64)).setOrigin(0.5).setDepth(DEPTH).setAlpha(0);
-    this.sub = scene.add.text(GAME.width / 2, 268, '', textStyle(24)).setOrigin(0.5).setDepth(DEPTH).setAlpha(0);
+    this.timer = scene.add
+      .text(GAME.width / 2, BAR_Y + 4, '', textStyle(42, '#ffe082', '#1c110a'))
+      .setOrigin(0.5)
+      .setDepth(DEPTH);
+    this.banner = scene.add
+      .text(GAME.width / 2, 210, '', textStyle(64, '#fff9e6', '#1c110a'))
+      .setOrigin(0.5)
+      .setDepth(DEPTH)
+      .setAlpha(0);
+    this.sub = scene.add
+      .text(GAME.width / 2, 268, '', textStyle(24, '#ffe082', '#1c110a'))
+      .setOrigin(0.5)
+      .setDepth(DEPTH)
+      .setAlpha(0);
   }
 
   private buildSide(i: number, name: string, wins: number): Side {
@@ -54,7 +65,7 @@ export class Hud {
     const health = s.add.rectangle(barX, BAR_Y, BAR_W - 4, BAR_H - 6, 0xc23a1c).setOrigin(anchor, 0.5).setDepth(DEPTH);
     s.add.rectangle(frameX, BAR_Y, BAR_W, BAR_H).setOrigin(0, 0.5).setStrokeStyle(2, 0x3a1d08).setDepth(DEPTH);
 
-    s.add.text(x, BAR_Y + 26, name, textStyle(20)).setOrigin(anchor, 0).setDepth(DEPTH);
+    s.add.text(x, BAR_Y + 26, name, textStyle(20, '#fff4db', '#1c110a')).setOrigin(anchor, 0).setDepth(DEPTH);
 
     // Round pips sit at the inner end of the bar, one per round needed to win.
     for (let r = 0; r < MATCH.roundsToWin; r++) {
@@ -75,12 +86,12 @@ export class Hud {
     const notch = (AJI.ekorApi.cost / AJI.max) * METER_W;
     s.add.rectangle(right ? x - notch : x + notch, METER_Y, 2, 18, 0x3a1d08).setDepth(DEPTH);
     s.add
-      .text(right ? x - METER_W - 8 : x + METER_W + 8, METER_Y, 'Aji', textStyle(16))
+      .text(right ? x - METER_W - 8 : x + METER_W + 8, METER_Y, 'Aji', textStyle(16, '#ffe082', '#1c110a'))
       .setOrigin(right ? 1 : 0, 0.5)
       .setDepth(DEPTH);
 
     const combo = s.add
-      .text(x, METER_Y + 34, '', textStyle(28))
+      .text(x, METER_Y + 34, '', textStyle(28, '#ffda6b', '#1c110a'))
       .setOrigin(anchor, 0.5)
       .setDepth(DEPTH)
       .setAlpha(0);

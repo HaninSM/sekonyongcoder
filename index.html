@@ -2,15 +2,98 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0805" />
+    <meta name="description" content="Hanoman: Wayang Kulit - Game Pertarungan 2D Ragdoll Wiracarita Ramayana" />
     <title>Hanoman: Wayang Kulit</title>
     <style>
-      html, body { margin: 0; height: 100%; background: #0d0805; overflow: hidden; }
-      #game { width: 100%; height: 100%; }
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #0d0805;
+        overflow: hidden;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      /* Viewport Wrapper: Normal Landscape for Desktop, Rotated 90deg on Mobile / Tall Screen */
+      #game-viewport {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        width: 100dvw;
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at center, #180e07 0%, #0d0805 100%);
+      }
+
+      #game {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+
+      #game canvas {
+        width: 100% !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        display: block !important;
+        outline: none;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: auto;
+      }
+
+      /* TALL SCREEN / MOBILE PORTRAIT ROTATE 90 DEGREE TO FULL LANDSCAPE */
+      @media screen and (orientation: portrait), screen and (max-aspect-ratio: 1/1) {
+        #game-viewport {
+          position: fixed !important;
+          top: 50% !important;
+          left: 50% !important;
+          width: 100vh !important;
+          width: 100dvh !important;
+          height: 100vw !important;
+          height: 100dvw !important;
+          transform: translate(-50%, -50%) rotate(90deg) !important;
+          transform-origin: center center !important;
+          overflow: hidden !important;
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
     </style>
   </head>
   <body>
-    <div id="game"></div>
+    <div id="game-viewport">
+      <main id="game" role="application" aria-label="Hanoman: Permainan Wayang Kulit Tarung"></main>
+    </div>
+    <div id="a11y-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

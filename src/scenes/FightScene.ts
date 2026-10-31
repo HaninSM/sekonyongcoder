@@ -8,8 +8,9 @@ import { AIController } from '../systems/AIController';
 import { Effects } from '../systems/Effects';
 import { gununganTransition, preloadGunungan } from '../systems/Gunungan';
 import { Hud } from '../systems/Hud';
-import { KEYMAPS, KeyboardController, NO_INPUT, type Controller, type InputState } from '../systems/InputController';
+import { KEYMAPS, KeyboardController, NO_INPUT, createPlayerController, type Controller, type InputState } from '../systems/InputController';
 import { Lighting } from '../systems/Lighting';
+import { Sounds } from '../systems/SoundSystem';
 import type { Mode } from './TitleScene';
 import storyConfig from '../data/story-config.json';
 
@@ -95,7 +96,7 @@ export class FightScene extends Phaser.Scene {
     const cpu = data.mode !== 'versus';
     const fireballs = () => this.fireballs;
     this.controllers = [
-      data.mode === 'demo' ? new AIController(p1, p2, fireballs) : new KeyboardController(this, KEYMAPS.p1),
+      data.mode === 'demo' ? new AIController(p1, p2, fireballs) : createPlayerController(this, KEYMAPS.p1),
       cpu ? new AIController(p2, p1, fireballs) : new KeyboardController(this, KEYMAPS.p2),
     ];
 
@@ -106,8 +107,12 @@ export class FightScene extends Phaser.Scene {
     gununganTransition(this, () => {
       const bannerTitle = data.mode === 'arcade' && currentChapter ? currentChapter.title : `Babak ${data.round}`;
       const bannerSub = data.mode === 'arcade' && currentChapter ? currentChapter.subtitle : '';
+      Sounds.cempala(0.9, 0.7);
+      Sounds.sulukChime(0.5);
       this.hud.announce(bannerTitle, bannerSub, 0.7);
       this.time.delayedCall(900, () => {
+        Sounds.cempala(1.3, 0.9);
+        Sounds.gong('kempul', 0.85);
         this.hud.announce('Perang!', '', 0.5);
         this.phase = 'fight';
       });
@@ -187,7 +192,10 @@ export class FightScene extends Phaser.Scene {
     this.cameras.main.flash(400, 255, 50, 50);
 
     const currentChapter = storyConfig.chapters.find((c: any) => c.chapterIndex === (this.match.chapterIndex ?? 1)) ?? storyConfig.chapters[0];
-    const rageVids = currentChapter?.rageVideos ?? ['/videos/rage_combat_1.mp4', '/videos/rage_combat_2.mp4'];
+    const rageVids =
+      currentChapter?.rageVideos?.filter((v: string) => v && v.endsWith('.mp4'))?.length
+        ? currentChapter.rageVideos
+        : ['/videos/combo_1_sugriwa_ke_subali.mp4', '/videos/combo_2_sugriwa_ke_subali.mp4'];
     const chosenVideo = rageVids[Math.floor(Math.random() * rageVids.length)];
 
     this.time.delayedCall(300, () => {
@@ -278,14 +286,21 @@ export class FightScene extends Phaser.Scene {
 
   private onImpact(attacker: number, result: HitResult, x: number, y: number, heavy: boolean, direction: number): void {
     if (result === 'block') {
+      Sounds.kepyak(0.8);
       this.effects.guard(x, y, direction);
       this.freeze(EFFECTS.blockStop);
       return;
     }
+    Sounds.hit(heavy, 0.85);
+    Sounds.cempala(heavy ? 0.9 : 1.3, 0.5);
     this.effects.spark(x, y, heavy);
     this.combo[attacker]++;
     this.hud.combo(attacker, this.combo[attacker]);
-    if (result === 'ko') return this.knockout(attacker);
+    if (result === 'ko') {
+      Sounds.hit(true, 1.0);
+      Sounds.gong('ageng', 0.9);
+      return this.knockout(attacker);
+    }
     this.freeze(heavy ? EFFECTS.hitStopHeavy : EFFECTS.hitStop);
   }
 
@@ -390,23 +405,35 @@ export class FightScene extends Phaser.Scene {
 
   private wireEvents(f: Fighter): void {
     f.on('fireball', (e: FireballEvent) => {
+      Sounds.fireball(0.85);
       this.effects.label(e.move.label, f.x, f.y - 130 * f.sizeScale, true, `p${this.fighters.indexOf(f)}`);
       this.fireballs.push(new Fireball(this, e, (x, y, size) => this.effects.ember(x, y, size)));
     });
-    f.on('land', (x: number, y: number, impact?: boolean) => this.effects.dust(x, y, impact ? 2 : 1));
-    f.on('jump', (x: number, y: number) => this.effects.dust(x, y, 0.6));
+    f.on('land', (x: number, y: number, impact?: boolean) => {
+      Sounds.cempala(impact ? 0.9 : 1.2, impact ? 0.5 : 0.3);
+      this.effects.dust(x, y, impact ? 2 : 1);
+    });
+    f.on('jump', (x: number, y: number) => {
+      Sounds.whoosh(1.3, 0.45);
+      this.effects.dust(x, y, 0.6);
+    });
     f.on('revive', () => {
+      Sounds.revive();
       this.cameras.main.flash(500, 255, 215, 0);
       this.effects.label('✨ BANGKIT KEMBALI! ✨', f.x, f.y - 180, true);
       this.hud.announce('Prajurit Bangkit Kembali!', 'Takdir kemenangan belum usai', 1.2);
     });
     f.on('aji', (name: string) => {
       if (name === 'triwikrama') {
+        Sounds.gong('kempul', 0.9);
         this.cameras.main.flash(250, 255, 224, 160);
         this.cameras.main.shake(300, 0.012);
         this.effects.label('Aji Triwikrama!', f.x, f.y - 230, true);
       }
-      if (name === 'mengecil') this.effects.label('Mengecil', f.x, f.y - 60);
+      if (name === 'mengecil') {
+        Sounds.whoosh(1.8, 0.6);
+        this.effects.label('Mengecil', f.x, f.y - 60);
+      }
     });
   }
 
