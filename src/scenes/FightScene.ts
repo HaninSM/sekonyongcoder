@@ -45,8 +45,11 @@ export class FightScene extends Phaser.Scene {
   private combo: [number, number] = [0, 0];
   private accumulator = 0;
   private pending: [InputState, InputState] = [NO_INPUT, NO_INPUT];
-  private rageUsed = false;
-  private ragePromptShown = false;
+  private p1RageUsed = false;
+  private p1RagePromptShown = false;
+  private cpuRageUsed = false;
+  private cpuRageWarningShown = false;
+  private cpuRageTimer = 0;
 
   constructor() {
     super('FightScene');
@@ -71,8 +74,11 @@ export class FightScene extends Phaser.Scene {
     this.accumulator = 0;
     this.pending = [NO_INPUT, NO_INPUT];
     this.framesLeft = MATCH.roundSeconds * GAME.fps;
-    this.rageUsed = false;
-    this.ragePromptShown = false;
+    this.p1RageUsed = false;
+    this.p1RagePromptShown = false;
+    this.cpuRageUsed = false;
+    this.cpuRageWarningShown = false;
+    this.cpuRageTimer = 0;
     gsap.globalTimeline.resume();
 
     new Lighting(this);
@@ -152,19 +158,43 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    // Check Rage Combat trigger in Arcade mode: P1 HP <= 50%
-    if (this.match.mode === 'arcade' && !this.rageUsed && this.phase === 'fight') {
+    // Check Rage Combat triggers in Arcade mode
+    if (this.match.mode === 'arcade' && this.phase === 'fight') {
       const [p1, p2] = this.fighters;
-      if (p1.health <= FIGHTER.maxHealth * 0.5) {
-        if (!this.ragePromptShown) {
-          this.ragePromptShown = true;
+
+      // 1. Player 1 Rage trigger (HP <= 50%)
+      if (!this.p1RageUsed && p1.health <= FIGHTER.maxHealth * 0.5) {
+        if (!this.p1RagePromptShown) {
+          this.p1RagePromptShown = true;
           this.effects.label('⚡ AMUK SIAP! TEKAN TOMBOL SERANG! ⚡', p1.x, p1.y - 180, true);
         }
         const p1In = inputs[0];
         const anyAction = p1In.handPressed || p1In.kickPressed || p1In.jumpPressed || p1In.ekorApiPressed || p1In.triwikramaPressed || p1In.mengecilPressed;
         if (anyAction) {
-          this.rageUsed = true;
-          this.triggerRageCombat(p1, p2);
+          this.p1RageUsed = true;
+          this.triggerRageCombat(p1, p2, false);
+          return;
+        }
+      }
+
+      // 2. CPU Rage trigger (HP <= 40% - Boss Phase "Last Stand" / Comeback Mechanic)
+      const currentChapter = storyConfig.chapters.find((c: any) => c.chapterIndex === (this.match.chapterIndex ?? 1)) ?? storyConfig.chapters[0];
+      const cpuRageAllowed = currentChapter?.cpuRageEnabled ?? true;
+
+      if (cpuRageAllowed && !this.cpuRageUsed && p2.health <= FIGHTER.maxHealth * 0.4) {
+        if (!this.cpuRageWarningShown) {
+          this.cpuRageWarningShown = true;
+          this.cpuRageTimer = 75; // ~1.25 detik (75 frames @ 60fps) jeda telegraphing
+          const cpuName = p2.character.toUpperCase();
+          this.effects.label(`⚠️ AWAS! ${cpuName} MEMASUKI FASE MURKA! ⚠️`, p2.x, p2.y - 180, true);
+          this.cameras.main.flash(350, 220, 40, 40);
+          this.cameras.main.shake(350, 0.015);
+        } else if (this.cpuRageTimer > 0) {
+          this.cpuRageTimer--;
+        } else {
+          // Trigger CPU Rage Combat when timer elapses
+          this.cpuRageUsed = true;
+          this.triggerRageCombat(p2, p1, true);
           return;
         }
       }
@@ -180,33 +210,66 @@ export class FightScene extends Phaser.Scene {
     if (this.phase === 'fight' && --this.framesLeft <= 0) this.timeUp();
   }
 
-  private triggerRageCombat(p1: Fighter, p2: Fighter): void {
+  private triggerRageCombat(attacker: Fighter, defender: Fighter, isCpu: boolean): void {
     this.phase = 'intro';
-    p1.freezeInPlace();
-    p2.freezeInPlace();
-    this.cameras.main.flash(400, 255, 50, 50);
+    attacker.freezeInPlace();
+    defender.freezeInPlace();
+
+    if (isCpu) {
+      this.cameras.main.flash(450, 220, 20, 20);
+      this.cameras.main.shake(400, 0.02);
+    } else {
+      this.cameras.main.flash(400, 255, 200, 50);
+    }
 
     const currentChapter = storyConfig.chapters.find((c: any) => c.chapterIndex === (this.match.chapterIndex ?? 1)) ?? storyConfig.chapters[0];
-    const rageVids = currentChapter?.rageVideos ?? ['/videos/rage_combat_1.mp4', '/videos/rage_combat_2.mp4'];
-    const chosenVideo = rageVids[Math.floor(Math.random() * rageVids.length)];
+    const defaultRageVids = ['/videos/combo_1_sugriwa_ke_subali.mp4', '/videos/combo_2_sugriwa_ke_subali.mp4'];
+
+    const specificVids = isCpu
+      ? (currentChapter?.cpuRageVideos ?? currentChapter?.rageVideos ?? []).filter((v: string) => v && v.endsWith('.mp4'))
+      : (currentChapter?.playerRageVideos ?? currentChapter?.rageVideos ?? []).filter((v: string) => v && v.endsWith('.mp4'));
+
+    const pool = specificVids.length > 0 ? specificVids : defaultRageVids;
+    const chosenVideo = pool[Math.floor(Math.random() * pool.length)];
+
+    const attackerName = attacker.character.toUpperCase();
+    const defenderName = defender.character.toUpperCase();
+
+    const badge = isCpu
+      ? `⚠️ AMUK MURKA DALANG: ${attackerName} ⚠️`
+      : `⚡ RAGE COMBAT AMUK WAYANG: ${attackerName} ⚡`;
+
+    const title = isCpu
+      ? `Jurus Pamungkas ${attackerName}!`
+      : 'Jurus Pamungkas Mengguncang Kelir!';
+
+    const subtitle = isCpu
+      ? `Waspada! Amukan murka memotong 40% darah ${defenderName}!`
+      : `Amukan sakti ${attackerName} memotong 50% darah lawan!`;
+
+    const damagePercent = isCpu ? 0.4 : 0.5;
+    const damageAmount = Math.round(FIGHTER.maxHealth * damagePercent);
 
     this.time.delayedCall(300, () => {
       this.scene.pause();
       this.scene.launch('CinematicScene', {
-        badge: '⚡ RAGE COMBAT AMUK WAYANG ⚡',
-        title: 'Jurus Pamungkas Mengguncang Kelir!',
-        subtitle: 'Amuk memotong 50% darah lawan!',
+        badge,
+        title,
+        subtitle,
         videoUrl: chosenVideo,
         durationSeconds: 10,
         onComplete: () => {
           this.scene.stop('CinematicScene');
           this.scene.resume();
           this.phase = 'fight';
-          p2.takeDirectDamage(Math.round(FIGHTER.maxHealth * 0.5));
-          this.effects.label('-50% DARAH LAWAN!', p2.x, p2.y - 140, true);
+          defender.takeDirectDamage(damageAmount);
+
+          const dmgLabel = isCpu ? '-40% DARAH TERPOTONG!' : '-50% DARAH LAWAN!';
+          this.effects.label(dmgLabel, defender.x, defender.y - 140, true);
           this.cameras.main.shake(500, 0.02);
-          if (p2.health <= 1) {
-            this.knockout(0);
+
+          if (defender.health <= 1) {
+            this.knockout(isCpu ? 1 : 0);
           }
         },
       });
@@ -369,8 +432,13 @@ export class FightScene extends Phaser.Scene {
               },
             });
           } else {
-            // Victory all chapters complete
-            this.scene.start('TitleScene');
+            // Victory: all chapters complete -> Show cultural CTA Prambanan before Title
+            const promo = (storyConfig as any).prambananPromo;
+            if (promo && promo.enabled !== false) {
+              this.scene.start('PrambananScene', promo);
+            } else {
+              this.scene.start('TitleScene');
+            }
           }
         },
       });

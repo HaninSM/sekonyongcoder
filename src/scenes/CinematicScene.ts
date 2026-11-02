@@ -18,6 +18,7 @@ export interface CinematicData {
 export class CinematicScene extends Phaser.Scene {
   private configData!: CinematicData;
   private isFinishing = false;
+  private hasActiveVideo = false;
   private videoEl?: HTMLVideoElement;
 
   constructor() {
@@ -31,73 +32,123 @@ export class CinematicScene extends Phaser.Scene {
   create(data: CinematicData): void {
     this.configData = data;
     this.isFinishing = false;
+    this.hasActiveVideo = false;
+
+    // 1. Deep theatrical dark backdrop (covers fighters & fight UI underneath)
+    const backdrop = this.add
+      .rectangle(GAME.width / 2, GAME.height / 2, GAME.width, GAME.height, 0x060402, 0)
+      .setDepth(1);
+    gsap.to(backdrop, { fillAlpha: 0.94, duration: 0.35, ease: 'power2.out' });
+
+    // 2. Warm kelir lighting & stage floor
     new Lighting(this);
-
     const floorTop = GAME.height - KELIR.floorHeight;
-    this.add.rectangle(GAME.width / 2, floorTop + KELIR.floorHeight / 2, GAME.width, KELIR.floorHeight, COLORS.gedebog);
+    this.add
+      .rectangle(GAME.width / 2, floorTop + KELIR.floorHeight / 2, GAME.width, KELIR.floorHeight, COLORS.gedebog, 0.9)
+      .setDepth(2);
 
-    const kayon = drawGunungan(this, GAME.width / 2, 320, 360).setDepth(10);
+    // 3. Golden center aura behind Gunungan
+    const aura = this.add.circle(GAME.width / 2, 320, 160, 0xf5c451, 0.08).setDepth(3);
+    gsap.to(aura, { scale: 1.3, alpha: 0.16, duration: 1.8, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+
+    // 4. Center Kayon / Gunungan
+    const kayon = drawGunungan(this, GAME.width / 2, 325, 330).setDepth(10);
     gsap.to(kayon, { angle: 3, duration: 2.2, yoyo: true, repeat: -1, ease: 'sine.inOut' });
 
-    // Badge (e.g. "FILM INTRO", "RAGE COMBAT", "FILM OUTRO")
+    // 5. Header Badge with decorative dark pill container
     const badgeText = data.badge ?? 'LAKON RAMAYANA';
     this.add
-      .text(GAME.width / 2, 70, `[ ${badgeText} ]`, {
-        ...textStyle(18),
+      .rectangle(GAME.width / 2, 65, 380, 32, 0x1f1107, 0.95)
+      .setStrokeStyle(1.5, 0xf5c451, 0.85)
+      .setDepth(20);
+
+    this.add
+      .text(GAME.width / 2, 65, badgeText, {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
         color: '#f5c451',
+        fontStyle: 'bold',
       })
       .setOrigin(0.5)
-      .setDepth(101);
+      .setDepth(21);
 
-    // Title & Subtitle
-    this.add.text(GAME.width / 2, 115, data.title, textStyle(38)).setOrigin(0.5).setDepth(101);
+    // 6. Title with strong drop-shadow and outline
     this.add
-      .text(GAME.width / 2, 165, data.subtitle, {
+      .text(GAME.width / 2, 115, data.title, {
+        ...textStyle(32),
+        stroke: '#120803',
+        strokeThickness: 5,
+        shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 6, fill: true },
+      })
+      .setOrigin(0.5)
+      .setDepth(21);
+
+    // 7. Subtitle with clear contrasting serif font
+    this.add
+      .text(GAME.width / 2, 155, data.subtitle, {
         fontFamily: 'Georgia, serif',
         fontSize: '18px',
-        color: '#f2d49b',
+        color: '#fce3b6',
         fontStyle: 'italic',
+        stroke: '#120803',
+        strokeThickness: 3,
+        shadow: { offsetX: 1, offsetY: 1, color: '#000000', blur: 4, fill: true },
       })
       .setOrigin(0.5)
-      .setDepth(101);
+      .setDepth(21);
 
-    // Skip Button / Hint
-    const skipBtn = this.add
-      .rectangle(GAME.width / 2, GAME.height - 40, 340, 36, 0x1c110a, 0.8)
-      .setStrokeStyle(2, 0xf5c451)
-      .setDepth(102)
-      .setInteractive({ useHandCursor: true });
-
-    this.add
-      .text(GAME.width / 2, GAME.height - 40, 'TEKAN [SPASI / ENTER / KLIK] UNTUK LEWATI', {
-        fontFamily: 'Georgia, serif',
-        fontSize: '13px',
-        color: '#f2d49b',
-      })
-      .setOrigin(0.5)
-      .setDepth(103);
-
-    skipBtn.on('pointerdown', () => this.finish());
-
-    // Try HTML5 Video Playback if file is provided
-    let hasPlayingVideo = false;
-    if (data.videoUrl) {
-      hasPlayingVideo = this.tryPlayVideo(data.videoUrl);
-    }
-
-    // Fallback timer if no video plays or video finishes
+    // 8. Progress Bar (placed below Gunungan, grounded & clean)
     const duration = data.durationSeconds ?? (data.badge?.includes('RAGE') ? 10 : 6);
-    this.add.rectangle(GAME.width / 2, 210, 400, 6, 0x4a3a1c).setDepth(101);
-    const progressBar = this.add.rectangle(GAME.width / 2 - 200, 210, 0, 6, 0xf5c451).setOrigin(0, 0.5).setDepth(102);
+    const barY = 505;
+    this.add
+      .rectangle(GAME.width / 2, barY, 404, 10, 0x140b04, 0.9)
+      .setStrokeStyle(1, 0x8a6a2a, 0.7)
+      .setDepth(20);
+
+    const progressBar = this.add
+      .rectangle(GAME.width / 2 - 200, barY, 0, 6, 0xf5c451)
+      .setOrigin(0, 0.5)
+      .setDepth(21);
 
     gsap.to(progressBar, {
       width: 400,
       duration,
       ease: 'linear',
       onComplete: () => {
-        if (!hasPlayingVideo) this.finish();
+        if (!this.hasActiveVideo) this.finish();
       },
     });
+
+    // 9. Skip Button with interactive hover feedback
+    const skipBtn = this.add
+      .rectangle(GAME.width / 2, GAME.height - 35, 340, 34, 0x180d05, 0.9)
+      .setStrokeStyle(1.5, 0xf5c451, 0.8)
+      .setDepth(22)
+      .setInteractive({ useHandCursor: true });
+
+    const skipTxt = this.add
+      .text(GAME.width / 2, GAME.height - 35, 'TEKAN [SPASI / ENTER / KLIK] UNTUK LEWATI', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '13px',
+        color: '#f5c451',
+      })
+      .setOrigin(0.5)
+      .setDepth(23);
+
+    skipBtn.on('pointerover', () => {
+      skipBtn.setFillStyle(0x381e0a, 1);
+      skipTxt.setColor('#fff4cf');
+    });
+    skipBtn.on('pointerout', () => {
+      skipBtn.setFillStyle(0x180d05, 0.9);
+      skipTxt.setColor('#f5c451');
+    });
+    skipBtn.on('pointerdown', () => this.finish());
+
+    // 10. Video Playback handling
+    if (data.videoUrl) {
+      this.tryPlayVideo(data.videoUrl);
+    }
 
     const kb = this.input.keyboard!;
     kb.once('keydown-SPACE', () => this.finish());
@@ -105,36 +156,58 @@ export class CinematicScene extends Phaser.Scene {
     this.input.once('pointerdown', () => this.finish());
   }
 
-  private tryPlayVideo(url: string): boolean {
+  private tryPlayVideo(url: string): void {
     try {
       const vid = document.createElement('video');
       vid.src = url;
       vid.autoplay = true;
       vid.muted = false;
+      vid.playsInline = true;
       vid.style.position = 'absolute';
-      vid.style.top = '10%';
+      vid.style.top = '12%';
       vid.style.left = '15%';
       vid.style.width = '70%';
-      vid.style.height = '70%';
+      vid.style.height = '68%';
+      vid.style.objectFit = 'contain';
+      vid.style.backgroundColor = '#000000';
       vid.style.zIndex = '1000';
       vid.style.borderRadius = '12px';
       vid.style.border = '3px solid #f5c451';
-      vid.style.boxShadow = '0 0 25px rgba(245, 196, 81, 0.6)';
+      vid.style.boxShadow = '0 0 35px rgba(245, 196, 81, 0.7)';
 
-      vid.onended = () => this.finish();
+      vid.onplaying = () => {
+        this.hasActiveVideo = true;
+      };
+
+      vid.onended = () => {
+        this.hasActiveVideo = false;
+        this.finish();
+      };
+
       vid.onerror = () => {
-        vid.remove();
+        this.hasActiveVideo = false;
+        if (this.videoEl) {
+          this.videoEl.remove();
+          this.videoEl = undefined;
+        }
       };
 
       document.body.appendChild(vid);
       this.videoEl = vid;
+
       vid.play().catch(() => {
+        // Fallback if browser blocks unmuted autoplay
         vid.muted = true;
-        vid.play().catch(() => vid.remove());
+        vid.play().catch(() => {
+          this.hasActiveVideo = false;
+          if (this.videoEl) {
+            this.videoEl.remove();
+            this.videoEl = undefined;
+          }
+        });
       });
-      return true;
     } catch {
-      return false;
+      this.hasActiveVideo = false;
     }
   }
 
@@ -149,7 +222,7 @@ export class CinematicScene extends Phaser.Scene {
     }
 
     gsap.killTweensOf(this);
-    this.cameras.main.fade(300, 28, 17, 10);
+    this.cameras.main.fade(300, 10, 6, 3);
     this.time.delayedCall(320, () => {
       this.configData.onComplete();
     });
