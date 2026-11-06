@@ -1,4 +1,4 @@
-# 🎭 Hanoman: Wayang Kulit Fighting Game (Sekonyong Coder)
+# 🎭 Game Wayang Kulit Ramayana (Sekonyong Coder)
 
 Game pertarungan (*fighting game*) 2D berbasis seni tradisi Wayang Kulit Jawa berlatar wiracarita epik **Ramayana**. Dibangun menggunakan **Phaser 3**, **TypeScript**, dan **Vite**, game ini menggabungkan mekanisme pertarungan modern dengan estetika kelir, suluk dalang, dan gerak artikulasi sendi wayang (*bone-based ragdoll puppet animation*).
 

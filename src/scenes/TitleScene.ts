@@ -27,7 +27,7 @@ export class TitleScene extends Phaser.Scene {
     const kayon = drawGunungan(this, GAME.width / 2, 300, 380).setDepth(10);
     gsap.to(kayon, { angle: 2, duration: 2.4, yoyo: true, repeat: -1, ease: 'sine.inOut' });
 
-    this.add.text(GAME.width / 2, 55, 'Hanoman: Perang Wayang', textStyle(44)).setOrigin(0.5).setDepth(101);
+    this.add.text(GAME.width / 2, 55, 'Game Wayang Kulit Ramayana', textStyle(44)).setOrigin(0.5).setDepth(101);
 
     // ---- Arcade Story Button ----
     const arcadeBtnY = floorTop - 110;
