@@ -447,7 +447,7 @@ export class FightScene extends Phaser.Scene {
 
     this.hud.announce(`${this.sideName(champion)} menang!`, 'J  main lagi      Esc  menu');
     this.input.keyboard!.once('keydown-J', () =>
-      this.scene.restart({ mode: this.match.mode, wins: [0, 0], round: 1 }),
+      this.scene.restart({ ...this.match, wins: [0, 0], round: 1 }),
     );
   }
 
