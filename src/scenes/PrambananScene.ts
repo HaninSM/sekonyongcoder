@@ -225,7 +225,7 @@ export class PrambananScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     const returnText = this.add
-      .text(width / 2, returnY, 'TEKAN [ SPASI / ENTER / KLIK ] UNTUK KEMBALI KE MENU UTAMA', {
+      .text(width / 2, returnY, 'TEKAN [ ❌ / START ] PADA JOYSTICK UNTUK KEMBALI KE MENU UTAMA', {
         fontFamily: 'Georgia, serif',
         fontSize: '13px',
         fontStyle: 'bold',
@@ -251,6 +251,14 @@ export class PrambananScene extends Phaser.Scene {
     this.input.keyboard?.once('keydown-SPACE', exitToTitle);
     this.input.keyboard?.once('keydown-ENTER', exitToTitle);
     this.input.keyboard?.once('keydown-ESC', exitToTitle);
+
+    if (this.input.gamepad) {
+      const pad = this.input.gamepad.getPad(0);
+      if (pad) pad.once('down', exitToTitle);
+      this.input.gamepad.once('connected', (newPad: Phaser.Input.Gamepad.Gamepad) => {
+        newPad.once('down', exitToTitle);
+      });
+    }
   }
 
   private async renderQrCode(x: number, y: number, size: number): Promise<void> {

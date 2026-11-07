@@ -19,7 +19,10 @@ export class CinematicScene extends Phaser.Scene {
   private configData!: CinematicData;
   private isFinishing = false;
   private hasActiveVideo = false;
-  private videoEl?: HTMLVideoElement;
+    private videoEl?: HTMLVideoElement;
+  private progressBar!: Phaser.GameObjects.Rectangle;
+  private loadingText?: Phaser.GameObjects.Text;
+  private audioPrompt?: Phaser.GameObjects.Text;
 
   constructor() {
     super('CinematicScene');
@@ -32,8 +35,8 @@ export class CinematicScene extends Phaser.Scene {
   create(data: CinematicData): void {
     this.configData = data;
     this.isFinishing = false;
-    this.hasActiveVideo = false;
-
+    this.hasActiveVideo = Boolean(data.videoUrl);
+    
     // 1. Deep theatrical dark backdrop (covers fighters & fight UI underneath)
     const backdrop = this.add
       .rectangle(GAME.width / 2, GAME.height / 2, GAME.width, GAME.height, 0x060402, 0)
@@ -98,36 +101,26 @@ export class CinematicScene extends Phaser.Scene {
       .setDepth(21);
 
     // 8. Progress Bar (placed below Gunungan, grounded & clean)
-    const duration = data.durationSeconds ?? (data.badge?.includes('RAGE') ? 10 : 6);
+    const duration = data.durationSeconds ?? (data.badge?.includes('RAGE') ? 10 : 8);
     const barY = 505;
     this.add
       .rectangle(GAME.width / 2, barY, 404, 10, 0x140b04, 0.9)
       .setStrokeStyle(1, 0x8a6a2a, 0.7)
       .setDepth(20);
 
-    const progressBar = this.add
+    this.progressBar = this.add
       .rectangle(GAME.width / 2 - 200, barY, 0, 6, 0xf5c451)
       .setOrigin(0, 0.5)
       .setDepth(21);
 
-    gsap.to(progressBar, {
-      width: 400,
-      duration,
-      ease: 'linear',
-      onComplete: () => {
-        if (!this.hasActiveVideo) this.finish();
-      },
-    });
+    // 9. Informational Badge (No-Skip Rule: Cutscene/Rage must be watched to completion)
+    this.add
+      .rectangle(GAME.width / 2, GAME.height - 35, 360, 32, 0x180d05, 0.85)
+      .setStrokeStyle(1.2, 0x8a6a2a, 0.7)
+      .setDepth(22);
 
-    // 9. Skip Button with interactive hover feedback
-    const skipBtn = this.add
-      .rectangle(GAME.width / 2, GAME.height - 35, 340, 34, 0x180d05, 0.9)
-      .setStrokeStyle(1.5, 0xf5c451, 0.8)
-      .setDepth(22)
-      .setInteractive({ useHandCursor: true });
-
-    const skipTxt = this.add
-      .text(GAME.width / 2, GAME.height - 35, 'TEKAN [SPASI / ENTER / KLIK] UNTUK LEWATI', {
+    this.add
+      .text(GAME.width / 2, GAME.height - 35, '🎬 Saksikan Kisah Sampai Selesai', {
         fontFamily: 'Georgia, serif',
         fontSize: '13px',
         color: '#f5c451',
@@ -135,83 +128,136 @@ export class CinematicScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(23);
 
-    skipBtn.on('pointerover', () => {
-      skipBtn.setFillStyle(0x381e0a, 1);
-      skipTxt.setColor('#fff4cf');
-    });
-    skipBtn.on('pointerout', () => {
-      skipBtn.setFillStyle(0x180d05, 0.9);
-      skipTxt.setColor('#f5c451');
-    });
-    skipBtn.on('pointerdown', () => this.finish());
-
-    // 10. Video Playback handling
+    // 10. Video Playback handling vs Non-Video Card
     if (data.videoUrl) {
       this.tryPlayVideo(data.videoUrl);
+    } else {
+      gsap.to(this.progressBar, {
+        width: 400,
+        duration,
+        ease: 'linear',
+        onComplete: () => this.finish(),
+      });
     }
-
-    const kb = this.input.keyboard!;
-    kb.once('keydown-SPACE', () => this.finish());
-    kb.once('keydown-ENTER', () => this.finish());
-    this.input.once('pointerdown', () => this.finish());
   }
 
   private tryPlayVideo(url: string): void {
     try {
+      this.loadingText = this.add
+        .text(GAME.width / 2, 340, '⏳ Memuat Adegan Film Cerita Wayang...', {
+          fontFamily: 'Georgia, serif',
+          fontSize: '16px',
+          color: '#f5c451',
+          stroke: '#1c110a',
+          strokeThickness: 3,
+        })
+        .setOrigin(0.5)
+        .setDepth(25);
+
       const vid = document.createElement('video');
       vid.src = url;
       vid.autoplay = true;
       vid.muted = false;
       vid.playsInline = true;
-      vid.style.position = 'absolute';
-      vid.style.top = '12%';
-      vid.style.left = '15%';
-      vid.style.width = '70%';
-      vid.style.height = '68%';
+      vid.preload = 'auto';
+
+      vid.style.position = 'fixed';
+      vid.style.top = '50%';
+      vid.style.left = '50%';
+      vid.style.transform = 'translate(-50%, -50%)';
+      vid.style.width = '78vw';
+      vid.style.maxWidth = '980px';
+      vid.style.height = '66vh';
+      vid.style.maxHeight = '540px';
       vid.style.objectFit = 'contain';
       vid.style.backgroundColor = '#000000';
-      vid.style.zIndex = '1000';
+      vid.style.zIndex = '99999';
       vid.style.borderRadius = '12px';
       vid.style.border = '3px solid #f5c451';
-      vid.style.boxShadow = '0 0 35px rgba(245, 196, 81, 0.7)';
+      vid.style.boxShadow = '0 0 45px rgba(245, 196, 81, 0.8)';
 
       vid.onplaying = () => {
-        this.hasActiveVideo = true;
+                if (this.loadingText) {
+          this.loadingText.destroy();
+          this.loadingText = undefined;
+        }
+      };
+
+      vid.ontimeupdate = () => {
+        if (vid.duration && this.progressBar && this.progressBar.active) {
+          const progress = Math.min(1, vid.currentTime / vid.duration);
+          this.progressBar.width = progress * 400;
+        }
       };
 
       vid.onended = () => {
-        this.hasActiveVideo = false;
-        this.finish();
+                this.finish();
       };
 
       vid.onerror = () => {
+        console.warn('Video failed to load, finishing fallback:', url);
         this.hasActiveVideo = false;
         if (this.videoEl) {
           this.videoEl.remove();
           this.videoEl = undefined;
         }
+        this.finish();
       };
 
       document.body.appendChild(vid);
       this.videoEl = vid;
 
-      vid.play().catch(() => {
-        // Fallback if browser blocks unmuted autoplay
-        vid.muted = true;
-        vid.play().catch(() => {
-          this.hasActiveVideo = false;
-          if (this.videoEl) {
-            this.videoEl.remove();
-            this.videoEl = undefined;
-          }
+      const playPromise = vid.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Unmuted autoplay blocked by browser policy, switching to muted:', err);
+          vid.muted = true;
+          vid.play().catch((err2) => {
+            console.error('Video play totally failed:', err2);
+            this.hasActiveVideo = false;
+            this.finish();
+          });
+          this.showAudioNotice();
         });
-      });
-    } catch {
+      }
+    } catch (e) {
+      console.error('tryPlayVideo exception:', e);
       this.hasActiveVideo = false;
+      this.finish();
     }
   }
 
+  private showAudioNotice(): void {
+    if (this.audioPrompt) return;
+    this.audioPrompt = this.add
+      .text(GAME.width / 2, 475, '🔊 Klik layar atau tekan sembarang tombol untuk mengaktifkan suara', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '13px',
+        color: '#fff3d1',
+        stroke: '#1c110a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(30);
+
+    const unmute = () => {
+      if (this.videoEl) this.videoEl.muted = false;
+      if (this.audioPrompt) {
+        this.audioPrompt.destroy();
+        this.audioPrompt = undefined;
+      }
+      window.removeEventListener('click', unmute);
+      window.removeEventListener('keydown', unmute);
+    };
+
+    window.addEventListener('click', unmute, { once: true });
+    window.addEventListener('keydown', unmute, { once: true });
+  }
+
   private finish(): void {
+    if (this.hasActiveVideo) {
+      this.hasActiveVideo = false;
+    }
     if (this.isFinishing) return;
     this.isFinishing = true;
 
@@ -219,6 +265,16 @@ export class CinematicScene extends Phaser.Scene {
       this.videoEl.pause();
       this.videoEl.remove();
       this.videoEl = undefined;
+    }
+
+    if (this.loadingText) {
+      this.loadingText.destroy();
+      this.loadingText = undefined;
+    }
+
+    if (this.audioPrompt) {
+      this.audioPrompt.destroy();
+      this.audioPrompt = undefined;
     }
 
     gsap.killTweensOf(this);

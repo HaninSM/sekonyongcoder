@@ -18,6 +18,9 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
+  input: {
+    gamepad: true,
+  },
   scene: [TitleScene, CinematicScene, FightScene, DojoScene, PrambananScene],
 });
 

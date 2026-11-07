@@ -8,7 +8,7 @@ import { AIController } from '../systems/AIController';
 import { Effects } from '../systems/Effects';
 import { gununganTransition, preloadGunungan } from '../systems/Gunungan';
 import { Hud } from '../systems/Hud';
-import { KEYMAPS, KeyboardController, NO_INPUT, type Controller, type InputState } from '../systems/InputController';
+import { GamepadController, NO_INPUT, type Controller, type InputState } from '../systems/InputController';
 import { Lighting } from '../systems/Lighting';
 import type { Mode } from './TitleScene';
 import storyConfig from '../data/story-config.json';
@@ -50,6 +50,8 @@ export class FightScene extends Phaser.Scene {
   private cpuRageUsed = false;
   private cpuRageWarningShown = false;
   private cpuRageTimer = 0;
+  private matchOverActive = false;
+  private matchOverHandled = false;
 
   constructor() {
     super('FightScene');
@@ -79,6 +81,8 @@ export class FightScene extends Phaser.Scene {
     this.cpuRageUsed = false;
     this.cpuRageWarningShown = false;
     this.cpuRageTimer = 0;
+    this.matchOverActive = false;
+    this.matchOverHandled = false;
     gsap.globalTimeline.resume();
 
     new Lighting(this);
@@ -101,9 +105,10 @@ export class FightScene extends Phaser.Scene {
     const cpu = data.mode !== 'versus';
     const fireballs = () => this.fireballs;
     this.controllers = [
-      data.mode === 'demo' ? new AIController(p1, p2, fireballs) : new KeyboardController(this, KEYMAPS.p1),
-      cpu ? new AIController(p2, p1, fireballs) : new KeyboardController(this, KEYMAPS.p2),
+      data.mode === 'demo' ? new AIController(p1, p2, fireballs) : new GamepadController(this, 0),
+      cpu ? new AIController(p2, p1, fireballs) : new GamepadController(this, 1),
     ];
+    this.setupGamepadIndicators();
 
     const p1Label = p1Char.charAt(0).toUpperCase() + p1Char.slice(1);
     const cpuLabel = cpuChar.charAt(0).toUpperCase() + cpuChar.slice(1);
@@ -119,7 +124,7 @@ export class FightScene extends Phaser.Scene {
       });
     });
 
-    this.input.keyboard!.on('keydown-ESC', () => this.scene.start('TitleScene'));
+    // Exclusively joystick-driven: exit via Select/Back on gamepad
   }
 
   update(_time: number, delta: number): void {
@@ -132,6 +137,32 @@ export class FightScene extends Phaser.Scene {
       this.pending = this.pending.map((i) => ({ ...NO_INPUT, left: i.left, right: i.right })) as [InputState, InputState];
     }
     this.hud.update(this.fighters, this.framesLeft / GAME.fps);
+
+    if (this.matchOverActive && !this.matchOverHandled) {
+      const pad = this.input.gamepad?.getPad(0);
+      if (pad && pad.connected) {
+        const isRestart = Boolean(
+          pad.A ||
+          pad.X ||
+          (pad.buttons[0] && pad.buttons[0].pressed) ||
+          (pad.buttons[2] && pad.buttons[2].pressed)
+        );
+        const isStart = Boolean(pad.buttons[9] && pad.buttons[9].pressed);
+        const isB = Boolean(pad.B || (pad.buttons[1] && pad.buttons[1].pressed));
+        const isBack = Boolean(pad.buttons[8] && pad.buttons[8].pressed);
+
+        if (isRestart) {
+          this.matchOverHandled = true;
+          this.scene.restart({ ...this.match, wins: [0, 0], round: 1 });
+          return;
+        }
+        if (isStart || isB || isBack) {
+          this.matchOverHandled = true;
+          this.scene.start('TitleScene');
+          return;
+        }
+      }
+    }
   }
 
   private collectInputs(): void {
@@ -445,10 +476,101 @@ export class FightScene extends Phaser.Scene {
       return;
     }
 
-    this.hud.announce(`${this.sideName(champion)} menang!`, 'J  main lagi      Esc  menu');
-    this.input.keyboard!.once('keydown-J', () =>
-      this.scene.restart({ ...this.match, wins: [0, 0], round: 1 }),
-    );
+    this.matchOverActive = true;
+    this.matchOverHandled = false;
+    this.hud.announce(`${this.sideName(champion)} menang!`, '🎮 [⬜] Main Lagi         [Start] Menu Utama');
+
+    const doRestart = () => {
+      if (this.matchOverHandled) return;
+      this.matchOverHandled = true;
+      this.scene.restart({ ...this.match, wins: [0, 0], round: 1 });
+    };
+
+    const doMenu = () => {
+      if (this.matchOverHandled) return;
+      this.matchOverHandled = true;
+      this.scene.start('TitleScene');
+    };
+
+    // Silent keyboard fallbacks (tidak ditampilkan di UI)
+    this.input.keyboard?.once('keydown-J', doRestart);
+    this.input.keyboard?.once('keydown-ENTER', doRestart);
+    this.input.keyboard?.once('keydown-SPACE', doRestart);
+    this.input.keyboard?.once('keydown-ESC', doMenu);
+
+    // Interactive clickable UI Buttons on screen
+    const btnY = 325;
+    const restartBtn = this.add
+      .rectangle(GAME.width / 2 - 130, btnY, 210, 40, 0x1c110a, 0.9)
+      .setStrokeStyle(2, 0xf5c451)
+      .setDepth(110)
+      .setInteractive({ useHandCursor: true });
+
+    const restartText = this.add
+      .text(GAME.width / 2 - 130, btnY, '🎮 [⬜] Main Lagi', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        fontStyle: 'bold',
+        color: '#f5c451',
+      })
+      .setOrigin(0.5)
+      .setDepth(111);
+
+    const menuBtn = this.add
+      .rectangle(GAME.width / 2 + 130, btnY, 210, 40, 0x1c110a, 0.9)
+      .setStrokeStyle(1.5, 0xd4af37, 0.8)
+      .setDepth(110)
+      .setInteractive({ useHandCursor: true });
+
+    const menuText = this.add
+      .text(GAME.width / 2 + 130, btnY, '🔘 [Start] Menu', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '15px',
+        color: '#f2d49b',
+      })
+      .setOrigin(0.5)
+      .setDepth(111);
+
+    restartBtn.on('pointerdown', doRestart);
+    menuBtn.on('pointerdown', doMenu);
+
+    restartBtn.on('pointerover', () => {
+      restartBtn.setFillStyle(0x3a1f0c, 1);
+      restartBtn.setStrokeStyle(2.5, 0xffe082);
+    });
+    restartBtn.on('pointerout', () => {
+      restartBtn.setFillStyle(0x1c110a, 0.9);
+      restartBtn.setStrokeStyle(2, 0xf5c451);
+    });
+
+    menuBtn.on('pointerover', () => {
+      menuBtn.setFillStyle(0x3a1f0c, 1);
+      menuBtn.setStrokeStyle(2, 0xffe082);
+    });
+    menuBtn.on('pointerout', () => {
+      menuBtn.setFillStyle(0x1c110a, 0.9);
+      menuBtn.setStrokeStyle(1.5, 0xd4af37, 0.8);
+    });
+
+    gsap.to([restartBtn, restartText, menuBtn, menuText], {
+      scale: 1.04,
+      duration: 0.8,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+    });
+
+    if (this.input.gamepad) {
+      const pad = this.input.gamepad.getPad(0);
+      const onEndBtn = (btn: number) => {
+        if (btn === 0 || btn === 2) doRestart(); // 0: A/Cross, 2: X/Square (Kotak)
+        else if (btn === 9 || btn === 1 || btn === 8) doMenu();
+      };
+      if (pad) pad.on('down', onEndBtn);
+      this.input.gamepad.on('connected', (newPad: Phaser.Input.Gamepad.Gamepad) => {
+        if (newPad.index === 0) newPad.on('down', onEndBtn);
+      });
+    }
   }
 
   private sideName(i: number): string {
@@ -486,5 +608,64 @@ export class FightScene extends Phaser.Scene {
     g.fillStyle(COLORS.gedebogTop).fillRect(0, top, GAME.width, 6);
     g.lineStyle(1, COLORS.gedebogTop, 0.5);
     for (let y = top + 18; y < GAME.height; y += 14) g.lineBetween(0, y, GAME.width, y);
+  }
+  private setupGamepadIndicators(): void {
+    const padText = this.add
+      .text(GAME.width / 2, 22, '', {
+        fontFamily: 'Georgia, serif',
+        fontSize: '12px',
+        color: '#f5c451',
+        stroke: '#1c110a',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setDepth(150);
+
+    const updateStatus = () => {
+      const nativePads = typeof navigator.getGamepads === 'function' ? Array.from(navigator.getGamepads()).filter(Boolean) : [];
+      const pad0 = nativePads[0] || this.input.gamepad?.getPad(0);
+      const pad1 = nativePads[1] || this.input.gamepad?.getPad(1);
+
+      if (this.match.mode === 'versus') {
+        if (pad0 && pad0.connected && pad1 && pad1.connected) {
+          padText.setText('🎮 P1 & P2: DUA JOYSTICK TERHUBUNG');
+          padText.setColor('#81c784');
+          this.time.delayedCall(3000, () => gsap.to(padText, { alpha: 0, duration: 0.6 }));
+        } else if (pad0 && pad0.connected) {
+          padText.setText('🎮 P1 Siap | P2: Sambungkan Joystick 2 & tekan tombol');
+          padText.setColor('#ffb74d');
+          padText.setAlpha(1);
+        } else {
+          padText.setText('🎮 Sambungkan Joystick untuk bertarung');
+          padText.setColor('#ffb74d');
+          padText.setAlpha(1);
+        }
+      } else {
+        if (pad0 && pad0.connected) {
+          padText.setText('🎮 JOYSTICK 1 TERHUBUNG');
+          padText.setColor('#81c784');
+          this.time.delayedCall(3000, () => gsap.to(padText, { alpha: 0, duration: 0.6 }));
+        } else {
+          padText.setText('🎮 Sambungkan Joystick & tekan sembarang tombol');
+          padText.setColor('#ffe082');
+          padText.setAlpha(1);
+        }
+      }
+    };
+
+    updateStatus();
+    this.input.gamepad?.on('connected', updateStatus);
+    this.input.gamepad?.on('disconnected', updateStatus);
+
+    if (this.input.gamepad) {
+      const pad = this.input.gamepad.getPad(0);
+      const onPadExit = (btn: number) => {
+        if (btn === 8) this.scene.start('TitleScene');
+      };
+      if (pad) pad.on('down', onPadExit);
+      this.input.gamepad.on('connected', (p: Phaser.Input.Gamepad.Gamepad) => {
+        if (p.index === 0) p.on('down', onPadExit);
+      });
+    }
   }
 }
