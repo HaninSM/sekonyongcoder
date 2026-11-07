@@ -478,7 +478,7 @@ export class FightScene extends Phaser.Scene {
 
     this.matchOverActive = true;
     this.matchOverHandled = false;
-    this.hud.announce(`${this.sideName(champion)} menang!`, '🎮 [⬜] Main Lagi         [Start] Menu Utama');
+    this.hud.announce(`${this.sideName(champion)} menang!`, '🎮 [❌] Main Lagi         [Start] Menu Utama');
 
     const doRestart = () => {
       if (this.matchOverHandled) return;
@@ -507,7 +507,7 @@ export class FightScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     const restartText = this.add
-      .text(GAME.width / 2 - 130, btnY, '🎮 [⬜] Main Lagi', {
+      .text(GAME.width / 2 - 130, btnY, '🎮 [❌] Main Lagi', {
         fontFamily: 'Georgia, serif',
         fontSize: '15px',
         fontStyle: 'bold',
